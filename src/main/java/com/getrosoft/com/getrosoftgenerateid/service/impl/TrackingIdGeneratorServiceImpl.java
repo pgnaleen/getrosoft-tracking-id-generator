@@ -7,8 +7,8 @@ import com.getrosoft.com.getrosoftgenerateid.model.ProductTrackingId;
 import com.getrosoft.com.getrosoftgenerateid.repository.TrackingIdRepository;
 import com.getrosoft.com.getrosoftgenerateid.service.TrackingIdGenerationService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -16,15 +16,15 @@ import java.util.Optional;
 @Service
 public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationService {
 
-    private final StringRedisTemplate redisTemplate;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ReactiveStringRedisTemplate redisTemplate;
+    private final ReactiveKafkaProducerTemplate<String, String> kafkaTemplate;
     private final TrackingIdRepository trackingIdRepository;
     private static final String REDIS_TRACKING_ID_KEY = "product-tracking-id";
     private static final String KAFKA_TOPIC = "product-tracking-id";
 
     @Autowired
-    public TrackingIdGeneratorServiceImpl(StringRedisTemplate redisTemplate,
-                                          KafkaTemplate<String, String> kafkaTemplate,
+    public TrackingIdGeneratorServiceImpl(ReactiveStringRedisTemplate redisTemplate,
+                                          ReactiveKafkaProducerTemplate<String, String> kafkaTemplate,
                                           TrackingIdRepository trackingIdRepository) {
         this.redisTemplate = redisTemplate;
         this.kafkaTemplate = kafkaTemplate;
@@ -69,7 +69,7 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
     private String generateTrackingId(TrackingIdGenerationRequestTracking request) throws RuntimeException {
 
         // redis will write tracking number to the disk offline
-        return Optional.ofNullable(redisTemplate.opsForValue().increment(REDIS_TRACKING_ID_KEY, 1))
+        return Optional.of(redisTemplate.opsForValue().increment(REDIS_TRACKING_ID_KEY, 1).subscribe())
                 .map(id -> request.getPrefix() + id)
                 .orElseThrow(() -> new ProductTrackingIdGenerationException("Unable to generate Id from redis"));
     }
@@ -83,7 +83,7 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
     private void publishProductTrackingIdToKafka(ProductTrackingId productTrackingId) {
 
         try {
-            kafkaTemplate.send(KAFKA_TOPIC, productTrackingId.generateJson());
+            kafkaTemplate.send(KAFKA_TOPIC, productTrackingId.generateJson()).subscribe();
         } catch (Exception e) {
             throw new ProductTrackingIdGenerationException("Failed to publish tracking ID to Kafka: ");
         }
