@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+# this connect with spring boot application outside host system to prometheus inside docker container
+scrape_configs:
+  - job_name: 'product-tracking-id-app'
+    metrics_path: '/api/v1/actuator/prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['host.docker.internal:8080']

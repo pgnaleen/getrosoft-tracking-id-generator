@@ -1,6 +1,6 @@
 package com.getrosoft.com.getrosoftgenerateid.controller;
 
-import com.getrosoft.com.getrosoftgenerateid.dto.request.TrackingIdGenerationRequest;
+import com.getrosoft.com.getrosoftgenerateid.dto.request.TrackingIdGenerationRequestTracking;
 import com.getrosoft.com.getrosoftgenerateid.service.TrackingIdGenerationService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/products/tracking/ids")
@@ -21,13 +22,13 @@ public class ProductTrackingIdGenerationController {
     private TrackingIdGenerationService trackingIdGenerationService;
 
     @PostMapping("/generate")
-    public ResponseEntity<String> generateTrackingIds(@Valid @RequestBody TrackingIdGenerationRequest request) {
+    public Mono<String> generateTrackingIds(@Valid @RequestBody TrackingIdGenerationRequestTracking request) {
         logger.info("Received request {}", request);
 
         try {
-            return ResponseEntity.ok(trackingIdGenerationService.generateId(request));
+            return Mono.just(trackingIdGenerationService.generateId(request));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return Mono.empty();
         }
     }
 }

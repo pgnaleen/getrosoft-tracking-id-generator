@@ -1,7 +1,7 @@
 package com.getrosoft.com.getrosoftgenerateid.service.impl;
 
-import com.getrosoft.com.getrosoftgenerateid.dto.request.BaseRequest;
-import com.getrosoft.com.getrosoftgenerateid.dto.request.TrackingIdGenerationRequest;
+import com.getrosoft.com.getrosoftgenerateid.dto.request.TrackingBaseRequest;
+import com.getrosoft.com.getrosoftgenerateid.dto.request.TrackingIdGenerationRequestTracking;
 import com.getrosoft.com.getrosoftgenerateid.exception.ProductTrackingIdGenerationException;
 import com.getrosoft.com.getrosoftgenerateid.model.ProductTrackingId;
 import com.getrosoft.com.getrosoftgenerateid.repository.TrackingIdRepository;
@@ -40,17 +40,18 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
      * @throws ProductTrackingIdGenerationException If ID generation fails.
      */
     @Override
-    public String generateId(BaseRequest request) throws RuntimeException{
+    public String generateId(TrackingBaseRequest request) throws RuntimeException{
 
-        if (!(request instanceof TrackingIdGenerationRequest))
+        // this is java 16+ pattern matching. it checks type of object and cast in one line
+        if (!(request instanceof TrackingIdGenerationRequestTracking trackingRequest))
             throw new ProductTrackingIdGenerationException("Invalid request type: Expected ProductTrackingIdGenerationException.");
 
         // generate distributed tracking id with help of redis and prefix.
         // redis will store tracking ids into given disk storage offline
-        String trackingId = generateTrackingId((TrackingIdGenerationRequest)request);
+        String trackingId = generateTrackingId(trackingRequest);
 
         // publish all product information with tracking id to kafka
-        ProductTrackingId productTrackingId = saveTrackingIdToDatabase((TrackingIdGenerationRequest)request, trackingId);
+        ProductTrackingId productTrackingId = saveTrackingIdToDatabase(trackingRequest, trackingId);
 
         // save all product information with tracking id to mongo db
         publishProductTrackingIdToKafka(productTrackingId);
@@ -65,13 +66,12 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
      * @return The generated tracking ID.
      * @throws ProductTrackingIdGenerationException If ID generation fails in Redis.
      */
-    private String generateTrackingId(TrackingIdGenerationRequest request) throws RuntimeException {
+    private String generateTrackingId(TrackingIdGenerationRequestTracking request) throws RuntimeException {
 
         // redis will write tracking number to the disk offline
-        Long id = Optional.ofNullable(redisTemplate.opsForValue().increment(REDIS_TRACKING_ID_KEY, 1))
+        return Optional.ofNullable(redisTemplate.opsForValue().increment(REDIS_TRACKING_ID_KEY, 1))
+                .map(id -> request.getPrefix() + id)
                 .orElseThrow(() -> new ProductTrackingIdGenerationException("Unable to generate Id from redis"));
-
-        return request.getPrefix() + id;
     }
 
     /**
@@ -96,20 +96,12 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
      * @param trackingId The generated tracking ID.
      * @throws ProductTrackingIdGenerationException If database save operation fails.
      */
-    private ProductTrackingId saveTrackingIdToDatabase(TrackingIdGenerationRequest request, String trackingId) {
-        ProductTrackingId productTrackingId = new ProductTrackingId();
-        productTrackingId.setProductId(request.getProductId());
-        productTrackingId.setProductName(request.getProductName());
-        productTrackingId.setProductCategory(request.getProductCategory());
-        productTrackingId.setProductPrice(request.getProductPrice());
-        productTrackingId.setTrackingId(trackingId);
+    private ProductTrackingId saveTrackingIdToDatabase(TrackingIdGenerationRequestTracking request, String trackingId) {
 
-        try {
-            productTrackingId = trackingIdRepository.save(productTrackingId);
-        } catch (Exception e) {
-            throw new ProductTrackingIdGenerationException("Failed to save tracking ID to database: " + e.getMessage());
-        }
-
-        return productTrackingId;
+        return Optional.of(request)
+                .map(req -> new ProductTrackingId(null,  req.getProductId(), req.getProductName(),
+                        req.getProductCategory(), req.getProductPrice(), trackingId))
+                .map(trackingIdRepository::save)
+                .orElseThrow(() -> new ProductTrackingIdGenerationException("Failed to save tracking ID to database: "));
     }
 }

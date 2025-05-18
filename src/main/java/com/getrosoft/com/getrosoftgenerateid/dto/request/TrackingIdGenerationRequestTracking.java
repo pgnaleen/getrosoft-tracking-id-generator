@@ -8,7 +8,7 @@ import lombok.*;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-public non-sealed class TrackingIdGenerationRequest implements BaseRequest {
+public non-sealed class TrackingIdGenerationRequestTracking implements TrackingBaseRequest {
     @NotBlank(message = "Prefix must not be blank")
     @Pattern(regexp = "^[A-Za-z]{1,5}$", message = "Prefix must contain only letters, max 5 characters")
     private String prefix;
