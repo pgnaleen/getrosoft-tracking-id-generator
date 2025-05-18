@@ -1,16 +1,14 @@
 package com.getrosoft.com.getrosoftgenerateid.dto.request;
 
 import jakarta.validation.constraints.*;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 
 @Getter
 @Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
-public class TrackingBaseRequestRequest implements BaseRequest {
+public class TrackingIdGenerationRequest implements BaseRequest {
     @NotBlank(message = "Prefix must not be blank")
     @Pattern(regexp = "^[A-Za-z]{1,5}$", message = "Prefix must contain only letters, max 5 characters")
     private String prefix;
