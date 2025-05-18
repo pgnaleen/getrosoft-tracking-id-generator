@@ -25,7 +25,7 @@ public class ProductTrackingIdGenerationController {
         logger.info("Received request {}", request);
 
         try {
-            return Mono.just(trackingIdGenerationService.generateId(request));
+            return trackingIdGenerationService.generateId(request);
         } catch (Exception e) {
             return Mono.empty();
         }

@@ -10,8 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
+import reactor.core.publisher.Mono;
 
 @Service
 public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationService {
@@ -40,23 +39,20 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
      * @throws ProductTrackingIdGenerationException If ID generation fails.
      */
     @Override
-    public String generateId(TrackingBaseRequest request) throws RuntimeException{
+    public Mono<String> generateId(TrackingBaseRequest request) throws RuntimeException{
 
         // this is java 16+ pattern matching. it checks type of object and cast in one line
         if (!(request instanceof TrackingIdGenerationRequestTracking trackingRequest))
-            throw new ProductTrackingIdGenerationException("Invalid request type: Expected ProductTrackingIdGenerationException.");
+            return Mono.error(new ProductTrackingIdGenerationException("Invalid request type: Expected ProductTrackingIdGenerationException."));
 
         // generate distributed tracking id with help of redis and prefix.
         // redis will store tracking ids into given disk storage offline
-        String trackingId = generateTrackingId(trackingRequest);
-
-        // publish all product information with tracking id to kafka
-        ProductTrackingId productTrackingId = saveTrackingIdToDatabase(trackingRequest, trackingId);
-
         // save all product information with tracking id to mongo db
-        publishProductTrackingIdToKafka(productTrackingId);
-
-        return productTrackingId.generateJson();
+        // publish all product information with tracking id to kafka
+        return generateTrackingId(trackingRequest)
+                .flatMap(trackingId -> saveTrackingIdToDatabase(trackingRequest, trackingId)
+                .flatMap(savedTrackingId -> publishProductTrackingIdToKafka(savedTrackingId)
+                .thenReturn(savedTrackingId.generateJson())));
     }
 
     /**
@@ -66,12 +62,12 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
      * @return The generated tracking ID.
      * @throws ProductTrackingIdGenerationException If ID generation fails in Redis.
      */
-    private String generateTrackingId(TrackingIdGenerationRequestTracking request) throws RuntimeException {
-
+    private Mono<String> generateTrackingId(TrackingIdGenerationRequestTracking request) throws RuntimeException {
         // redis will write tracking number to the disk offline
-        return Optional.of(redisTemplate.opsForValue().increment(REDIS_TRACKING_ID_KEY, 1).subscribe())
+        return redisTemplate.opsForValue()
+                .increment(REDIS_TRACKING_ID_KEY)
                 .map(id -> request.getPrefix() + id)
-                .orElseThrow(() -> new ProductTrackingIdGenerationException("Unable to generate Id from redis"));
+                .switchIfEmpty(Mono.error(new ProductTrackingIdGenerationException("Unable to generate Id from redis")));
     }
 
     /**
@@ -80,13 +76,13 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
      * @param productTrackingId The product details to be published.
      * @throws ProductTrackingIdGenerationException If Kafka publish fails.
      */
-    private void publishProductTrackingIdToKafka(ProductTrackingId productTrackingId) {
+    private Mono<Void> publishProductTrackingIdToKafka(ProductTrackingId productTrackingId) {
 
-        try {
-            kafkaTemplate.send(KAFKA_TOPIC, productTrackingId.generateJson()).subscribe();
-        } catch (Exception e) {
-            throw new ProductTrackingIdGenerationException("Failed to publish tracking ID to Kafka: ");
-        }
+        return kafkaTemplate.send(KAFKA_TOPIC, productTrackingId.generateJson())
+                .then()
+                .onErrorResume(e -> Mono.error(
+                                new ProductTrackingIdGenerationException("Failed to publish tracking ID to Kafka: "
+                                        + e.getMessage())));
     }
 
     /**
@@ -96,12 +92,16 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
      * @param trackingId The generated tracking ID.
      * @throws ProductTrackingIdGenerationException If database save operation fails.
      */
-    private ProductTrackingId saveTrackingIdToDatabase(TrackingIdGenerationRequestTracking request, String trackingId) {
+    private Mono<ProductTrackingId> saveTrackingIdToDatabase(TrackingIdGenerationRequestTracking request, String trackingId) {
+        ProductTrackingId productTrackingId = new ProductTrackingId(null,
+                request.getProductId(),
+                request.getProductName(),
+                request.getProductCategory(),
+                request.getProductPrice(),
+                trackingId);
 
-        return Optional.of(request)
-                .map(req -> new ProductTrackingId(null,  req.getProductId(), req.getProductName(),
-                        req.getProductCategory(), req.getProductPrice(), trackingId))
-                .map(trackingIdRepository::save)
-                .orElseThrow(() -> new ProductTrackingIdGenerationException("Failed to save tracking ID to database: "));
+        return trackingIdRepository.save(productTrackingId)
+                .onErrorMap(e -> new ProductTrackingIdGenerationException("Failed to save tracking ID to database: "
+                        + e.getMessage()));
     }
 }
