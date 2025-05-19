@@ -1,0 +1,13 @@
+services:
+
+  kafka:
+    image: openzipkin/zipkin
+    restart: always
+    ports:
+      - 9411:9411
+    networks:
+      - zipkin-network
+
+networks:
+  zipkin-network:
+    driver: bridge
