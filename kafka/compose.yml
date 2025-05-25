@@ -47,7 +47,7 @@ services:
       - kafka-network
 
   kafka:
-    image: bitnami/kafka:latest
+    image: bitnami/kafka:3.6
     container_name: kafka
     ports:
       - "9092:9092"
