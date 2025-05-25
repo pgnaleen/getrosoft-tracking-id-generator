@@ -59,9 +59,6 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
                 .flatMap(trackingId -> saveTrackingIdToDatabase(trackingRequest, trackingId)
                 .flatMap(savedTrackingId -> publishProductTrackingIdToKafka(savedTrackingId)
                 .thenReturn(savedTrackingId.generateJson())));
-//        return generateTrackingId(trackingRequest)
-//                .flatMap(trackingId -> saveTrackingIdToDatabase(trackingRequest, trackingId)
-//                .map(ProductTrackingId::generateJson));
     }
 
     /**
