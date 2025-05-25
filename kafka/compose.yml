@@ -2,6 +2,12 @@ services:
 
   kafka:
     image: apache/kafka:latest
+    container_name: broker
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://0.0.0.0:9092
     restart: always
     ports:
       - 9092:9092
