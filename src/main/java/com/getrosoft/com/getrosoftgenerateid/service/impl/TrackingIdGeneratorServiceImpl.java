@@ -1,17 +1,21 @@
 package com.getrosoft.com.getrosoftgenerateid.service.impl;
 
-import com.getrosoft.com.getrosoftgenerateid.dto.request.TrackingBaseRequest;
-import com.getrosoft.com.getrosoftgenerateid.dto.request.TrackingIdGenerationRequestTracking;
+import com.getrosoft.com.getrosoftgenerateid.dto.param.TrackingBaseQueryParams;
+import com.getrosoft.com.getrosoftgenerateid.dto.param.TrackingIdGenerationQueryParams;
 import com.getrosoft.com.getrosoftgenerateid.exception.ProductTrackingIdGenerationException;
 import com.getrosoft.com.getrosoftgenerateid.model.ProductTrackingId;
 import com.getrosoft.com.getrosoftgenerateid.repository.TrackingIdRepository;
 import com.getrosoft.com.getrosoftgenerateid.service.TrackingIdGenerationService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.UUID;
+
+@Slf4j
 @Service
 public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationService {
 
@@ -39,11 +43,13 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
      * @throws ProductTrackingIdGenerationException If ID generation fails.
      */
     @Override
-    public Mono<String> generateId(TrackingBaseRequest request) throws RuntimeException{
+    public Mono<String> generateId(TrackingBaseQueryParams request) throws RuntimeException{
 
         // this is java 16+ pattern matching. it checks type of object and cast in one line
-        if (!(request instanceof TrackingIdGenerationRequestTracking trackingRequest))
+        if (!(request instanceof TrackingIdGenerationQueryParams trackingRequest)) {
+            log.info("Invalid request type");
             return Mono.error(new ProductTrackingIdGenerationException("Invalid request type: Expected ProductTrackingIdGenerationException."));
+        }
 
         // generate distributed tracking id with help of redis and prefix.
         // redis will store tracking ids into given disk storage offline
@@ -62,11 +68,13 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
      * @return The generated tracking ID.
      * @throws ProductTrackingIdGenerationException If ID generation fails in Redis.
      */
-    private Mono<String> generateTrackingId(TrackingIdGenerationRequestTracking request) throws RuntimeException {
+    private Mono<String> generateTrackingId(TrackingIdGenerationQueryParams request) throws RuntimeException {
+        log.debug("Generating tracking id for {}", request);
+
         // redis will write tracking number to the disk offline
         return redisTemplate.opsForValue()
                 .increment(REDIS_TRACKING_ID_KEY)
-                .map(id -> request.getPrefix() + id)
+                .map(id -> request.getOriginCountryId() + Long.toString(id, 36).toUpperCase())
                 .switchIfEmpty(Mono.error(new ProductTrackingIdGenerationException("Unable to generate Id from redis")));
     }
 
@@ -77,6 +85,7 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
      * @throws ProductTrackingIdGenerationException If Kafka publish fails.
      */
     private Mono<Void> publishProductTrackingIdToKafka(ProductTrackingId productTrackingId) {
+        log.info("Publishing product tracking id to kafka {}", productTrackingId);
 
         return kafkaTemplate.send(KAFKA_TOPIC, productTrackingId.generateJson())
                 .then()
@@ -88,16 +97,21 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
     /**
      * Saves the generated tracking ID and product details to the database.
      *
-     * @param request The request containing product details.
+     * @param queryParams The queryParams containing product details.
      * @param trackingId The generated tracking ID.
      * @throws ProductTrackingIdGenerationException If database save operation fails.
      */
-    private Mono<ProductTrackingId> saveTrackingIdToDatabase(TrackingIdGenerationRequestTracking request, String trackingId) {
+    private Mono<ProductTrackingId> saveTrackingIdToDatabase(TrackingIdGenerationQueryParams queryParams, String trackingId) {
+        log.debug("Saving tracking id to database");
+
         ProductTrackingId productTrackingId = new ProductTrackingId(null,
-                request.getProductId(),
-                request.getProductName(),
-                request.getProductCategory(),
-                request.getProductPrice(),
+                queryParams.getOriginCountryId(),
+                queryParams.getDestinationCountryId(),
+                queryParams.getWeight(),
+                queryParams.getCreatedAt(),
+                UUID.fromString(queryParams.getCustomerId()),
+                queryParams.getCustomerName(),
+                queryParams.getCustomerSlug(),
                 trackingId);
 
         return trackingIdRepository.save(productTrackingId)

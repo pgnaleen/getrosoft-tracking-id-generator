@@ -1,7 +1,7 @@
 package com.getrosoft.com.getrosoftgenerateid;
 
-import com.getrosoft.com.getrosoftgenerateid.dto.request.TrackingBaseRequest;
-import com.getrosoft.com.getrosoftgenerateid.dto.request.TrackingIdGenerationRequestTracking;
+import com.getrosoft.com.getrosoftgenerateid.dto.param.TrackingBaseQueryParams;
+import com.getrosoft.com.getrosoftgenerateid.dto.param.TrackingIdGenerationQueryParams;
 import com.getrosoft.com.getrosoftgenerateid.exception.ProductTrackingIdGenerationException;
 import com.getrosoft.com.getrosoftgenerateid.model.ProductTrackingId;
 import com.getrosoft.com.getrosoftgenerateid.repository.TrackingIdRepository;
@@ -16,6 +16,9 @@ import org.springframework.data.redis.core.ReactiveValueOperations;
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+
+import java.math.BigDecimal;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -45,20 +48,20 @@ class TrackingIdGeneratorServiceImplTest {
 
     @Test
     void generateId_Success() {
-        TrackingIdGenerationRequestTracking request = new TrackingIdGenerationRequestTracking("PRD-", "123", "Test Product", 9.99, "Category A") ;
+        TrackingIdGenerationQueryParams request = new TrackingIdGenerationQueryParams("LK", "US", new BigDecimal("1.123"), "2025-05-24T15:30:00.124+05:30" ,"de618594-b59b-425e-9db4-943979e1bd49", "anold shodinger","anold-shodinger") ;
 
         when(valueOperations.increment(any())).thenReturn(Mono.just(1L));
-        when(trackingIdRepository.save(any(ProductTrackingId.class))).thenReturn(Mono.just(new ProductTrackingId("id", "123", "Test Product", "Category A", 9.99, "PRD-1")));
+        when(trackingIdRepository.save(any(ProductTrackingId.class))).thenReturn(Mono.just(new ProductTrackingId("id", "LK", "US", new BigDecimal("1.123"), "2025-05-24T15:30:00.124+05:30" , UUID.fromString("de618594-b59b-425e-9db4-943979e1bd49"), "anold shodinger","anold-shodinger", "LK")));
         when(kafkaTemplate.send(any(), (String) any())).thenReturn(Mono.empty());
 
         StepVerifier.create(service.generateId(request))
-                .expectNextMatches(id -> id.contains("PRD-"))
+                .expectNextMatches(id -> id.contains("LK"))
                 .verifyComplete();
     }
 
     @Test
     void generateId_InvalidRequestType() {
-        TrackingBaseRequest invalidRequest = null;
+        TrackingBaseQueryParams invalidRequest = null;
 
         StepVerifier.create(service.generateId(invalidRequest))
                 .expectErrorMatches(throwable -> throwable instanceof ProductTrackingIdGenerationException
@@ -68,7 +71,7 @@ class TrackingIdGeneratorServiceImplTest {
 
     @Test
     void generateId_Failure_Redis() {
-        TrackingIdGenerationRequestTracking request = new TrackingIdGenerationRequestTracking("PRD-", "123", "Test Product", 9.99, "Category A");
+        TrackingIdGenerationQueryParams request = new TrackingIdGenerationQueryParams("LK", "US", new BigDecimal("1.123"), "2025-05-24T15:30:00.124+05:30" ,"de618594-b59b-425e-9db4-943979e1bd49", "anold shodinger","anold-shodinger");
 
         when(valueOperations.increment(any())).thenReturn(Mono.empty());
 
@@ -80,7 +83,7 @@ class TrackingIdGeneratorServiceImplTest {
 
     @Test
     void generateId_Failure_SaveToDatabase() {
-        TrackingIdGenerationRequestTracking request = new TrackingIdGenerationRequestTracking("PRD-", "123", "Test Product", 9.99, "Category A");
+        TrackingIdGenerationQueryParams request = new TrackingIdGenerationQueryParams("LK", "US", new BigDecimal("1.123"), "2025-05-24T15:30:00.124+05:30" ,"de618594-b59b-425e-9db4-943979e1bd49", "anold shodinger","anold-shodinger");
 
         when(valueOperations.increment(any())).thenReturn(Mono.just(1L));
         when(trackingIdRepository.save(any(ProductTrackingId.class))).thenReturn(Mono.error(new RuntimeException("Database error")));
@@ -93,10 +96,10 @@ class TrackingIdGeneratorServiceImplTest {
 
     @Test
     void generateId_Failure_PublishToKafka() {
-        TrackingIdGenerationRequestTracking request = new TrackingIdGenerationRequestTracking("PRD-", "123", "Test Product", 9.99, "Category A");
+        TrackingIdGenerationQueryParams request = new TrackingIdGenerationQueryParams("LK", "US", new BigDecimal("1.123"), "2025-05-24T15:30:00.124+05:30" ,"de618594-b59b-425e-9db4-943979e1bd49", "anold shodinger","anold-shodinger");
 
         when(valueOperations.increment(any())).thenReturn(Mono.just(1L));
-        when(trackingIdRepository.save(any(ProductTrackingId.class))).thenReturn(Mono.just(new ProductTrackingId("id", "123", "Test Product", "Category A", 9.99, "PRD-1")));
+        when(trackingIdRepository.save(any(ProductTrackingId.class))).thenReturn(Mono.just(new ProductTrackingId("id", "LK", "US", new BigDecimal("1.123"), "2025-05-24T15:30:00.124+05:30" , UUID.fromString("de618594-b59b-425e-9db4-943979e1bd49"), "anold shodinger","anold-shodinger", "LK")));
         when(kafkaTemplate.send(any(), (String)any())).thenReturn(Mono.error(new RuntimeException("Kafka error")));
 
         StepVerifier.create(service.generateId(request))
