@@ -7,6 +7,10 @@ services:
       - 9092:9092
     networks:
       - kafka-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
 networks:
   kafka-network:
