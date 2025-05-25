@@ -74,7 +74,7 @@ public class TrackingIdGeneratorServiceImpl implements TrackingIdGenerationServi
         // redis will write tracking number to the disk offline
         return redisTemplate.opsForValue()
                 .increment(REDIS_TRACKING_ID_KEY)
-                .map(id -> request.getOriginCountryId() + Long.toString(id, 36).toUpperCase())
+                .map(id -> request.getDestinationCountryId() + Long.toString(id, 36).toUpperCase())
                 .switchIfEmpty(Mono.error(new ProductTrackingIdGenerationException("Unable to generate Id from redis")));
     }
 
