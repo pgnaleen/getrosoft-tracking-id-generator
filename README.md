@@ -14,5 +14,5 @@ nohup java -Xms256m  -Xmx256m  -jar build/libs/getrosoft-generate-id-0.0.1-SNAPS
 #### send below get request
 http://localhost:8080/api/v1/products/next-tracking-number?origin_country_id=LK&destination_country_id=US&weight=0.1&created_at=2025-05-24T15%3A30%3A00.124%2B05%3A30&customer_id=de618594-b59b-425e-9db4-943979e1bd49&customer_name=anold%20shodinger&customer_slug=anold-shodinger
 
-## Publicly hosted application
+## Publicly hosted application in AWS Cloud Platform
 URL: http://54.161.179.17:8080/api/v1/products/next-tracking-number?origin_country_id=LK&destination_country_id=US&weight=0.1&created_at=2025-05-24T15%3A30%3A00.124%2B05%3A30&customer_id=de618594-b59b-425e-9db4-943979e1bd49&customer_name=anold%20shodinger&customer_slug=anold-shodinger
