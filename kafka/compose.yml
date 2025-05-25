@@ -10,7 +10,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 350M
+          memory: 450M
 
 networks:
   kafka-network:
