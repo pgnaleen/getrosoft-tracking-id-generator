@@ -1,31 +1,28 @@
 package com.getrosoft.com.getrosoftgenerateid.controller;
 
-import com.getrosoft.com.getrosoftgenerateid.dto.request.TrackingIdGenerationRequestTracking;
+import com.getrosoft.com.getrosoftgenerateid.dto.param.TrackingIdGenerationQueryParams;
 import com.getrosoft.com.getrosoftgenerateid.service.TrackingIdGenerationService;
-import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @RestController
-@RequestMapping("/products/tracking/ids")
+@Validated // this support group validations
+@RequestMapping("/products")
 public class ProductTrackingIdGenerationController {
-    private static final Logger logger = LoggerFactory.getLogger(ProductTrackingIdGenerationController.class);
 
     @Autowired
     private TrackingIdGenerationService trackingIdGenerationService;
 
-    @PostMapping("/generate")
-    public Mono<String> generateTrackingIds(@Valid @RequestBody TrackingIdGenerationRequestTracking request) {
-        logger.info("Received request {}", request);
+    @GetMapping("/next-tracking-number")
+    public Mono<String> generateTrackingIds(@Validated @ModelAttribute TrackingIdGenerationQueryParams queryParams) {
+        log.info("Received request {}", queryParams);
 
         try {
-            return trackingIdGenerationService.generateId(request);
+            return trackingIdGenerationService.generateId(queryParams);
         } catch (Exception e) {
             return Mono.empty();
         }

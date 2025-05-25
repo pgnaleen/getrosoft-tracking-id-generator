@@ -6,23 +6,32 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.math.BigDecimal;
+import java.util.UUID;
+
 @Document(collection = "product_tracking_ids")
 @CompoundIndexes({
-        @CompoundIndex(name = "product_id_category_idx", def = "{'productId': 1, 'productCategory': 1}", unique = true)
+        @CompoundIndex(name = "destination_country_id_customer_slug_idx", def = "{'destinationCountryId': 1, 'customerSlug': 1}", unique = true)
 })
 public record ProductTrackingId(
         @Id String id,
 
+        String originCountryId,
+
+        String destinationCountryId,
+
+        BigDecimal weight,
+
+        @Indexed
+        String createdAt,
+
         @Indexed(unique = true)
-        String productId,
+        UUID customerId,
+
+        String customerName,
 
         @Indexed
-        String productName,
-
-        @Indexed
-        String productCategory,
-
-        double productPrice,
+        String customerSlug,
 
         @Indexed(unique = true)
         String trackingId
@@ -30,12 +39,9 @@ public record ProductTrackingId(
     public String generateJson() {
         return """
                {
-                   "productId": "%s",
-                   "productName": "%s",
-                   "productCategory": "%s",
-                   "productPrice": %.2f,
-                   "trackingId": "%s"
+                   "tracking_number": "%s",
+                   "created_at": "%s"
                }
-               """.formatted(productId, productName, productCategory, productPrice, trackingId);
+               """.formatted(trackingId, createdAt);
     }
 }
