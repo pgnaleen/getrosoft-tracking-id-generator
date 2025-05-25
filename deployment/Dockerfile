@@ -11,4 +11,4 @@ COPY getrosoft-generate-id-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8080
 
 # Run the Spring Boot application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xms256m", "-Xmx512m", "-XX:MaxCPUCount=1", "-jar", "app.jar"]
