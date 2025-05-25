@@ -5,7 +5,7 @@ FROM openjdk
 WORKDIR /app
 
 # Copy the JAR file into the container
-COPY ../build/libs/getrosoft-generate-id-0.0.1-SNAPSHOT.jar app.jar
+COPY getrosoft-generate-id-0.0.1-SNAPSHOT.jar app.jar
 
 # Expose the application port (change if needed)
 EXPOSE 8080
