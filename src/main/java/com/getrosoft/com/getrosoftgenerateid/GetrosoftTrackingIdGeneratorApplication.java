@@ -9,5 +9,4 @@ public class GetrosoftTrackingIdGeneratorApplication {
     public static void main(String[] args) {
         SpringApplication.run(GetrosoftTrackingIdGeneratorApplication.class, args);
     }
-
 }
