@@ -8,7 +8,17 @@
 
 ### step 03:
 #### start the spring boot application
-nohup java -Xms256m  -Xmx256m  -jar build/libs/getrosoft-generate-id-0.0.1-SNAPSHOT.jar &
+to build the application
+./gradlew bootJar
+
+then
+cd deployments
+
+build docker image
+docker build -t tracking-app .
+
+run docker image
+docker run -p 8080:8080 tracking-app
 
 ### step 04:
 #### send below get request
